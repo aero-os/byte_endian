@@ -25,6 +25,19 @@ macro_rules! make_endian {
     };
 }
 
+macro_rules! impl_traits {
+    ($($type:ident),*) => {
+        $(
+            impl<T: Endian<T>> From<T> for $type<T> {
+                #[inline]
+                fn from(value: T) -> Self {
+                    Self::new(value)
+                }
+            }
+        )*
+    };
+}
+
 pub trait Endian<T>
 where
     Self: Into<T> + Copy + Clone + Send + Sync,
@@ -88,6 +101,8 @@ impl<T: Endian<T>> LittleEndian<T> {
     }
 }
 
+impl_traits!(LittleEndian, BigEndian);
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -95,9 +110,11 @@ mod test {
     #[test]
     fn new_to_native() {
         let value = BigEndian::new(12345u64);
+        assert_eq!(value, 12345u64.into());
         assert_eq!(value.to_native(), 12345u64);
 
         let value = LittleEndian::new(12345u64);
+        assert_eq!(value, 12345u64.into());
         assert_eq!(value.to_native(), 12345u64);
     }
 
