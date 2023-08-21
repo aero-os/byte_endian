@@ -1,0 +1,7 @@
+[package]
+name = "byte_endian"
+version = "0.1.0"
+edition = "2021"
+authors = ["Anhad Singh <andypython@protonmail.com>"]
+
+[dependencies]
