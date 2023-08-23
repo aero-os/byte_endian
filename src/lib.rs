@@ -1,37 +1,49 @@
 #![no_std]
 #![warn(clippy::pedantic)]
 
-macro_rules! make_endian {
-    ($($type:ty),*) => {
+macro_rules! impl_traits {
+    // Implements `Endian` for the given endian types and implements the
+    // necessary traits for the big and little endian types ($l and $b).
+    ($($endian_type:ident),+ => $l:ident, $b:ident) => {
         $(
-            impl Endian<$type> for $type {
-                fn to_be(&self) -> $type {
-                    <$type>::to_be(*self)
+            impl Endian<$endian_type> for $endian_type {
+                fn to_be(&self) -> $endian_type {
+                    <$endian_type>::to_be(*self)
                 }
 
-                fn to_le(&self) -> $type {
-                    <$type>::to_le(*self)
+                fn to_le(&self) -> $endian_type {
+                    <$endian_type>::to_le(*self)
                 }
 
-                fn from_be(value: $type) -> $type {
-                    <$type>::from_be(value)
+                fn from_be(value: $endian_type) -> $endian_type {
+                    <$endian_type>::from_be(value)
                 }
 
-                fn from_le(value: $type) -> $type {
-                    <$type>::from_le(value)
+                fn from_le(value: $endian_type) -> $endian_type {
+                    <$endian_type>::from_le(value)
                 }
             }
-        )*
-    };
-}
+        )+
 
-macro_rules! impl_traits {
-    ($($type:ident),*) => {
+        impl_traits!(@make_impl $($endian_type),+ => $l);
+        impl_traits!(@make_impl $($endian_type),+ => $b);
+    };
+
+    // Implements `From<T> for $type<T>` and `From<$type<T>> for T` where T
+    // is a subtype of Endian<T> and $type is either big or little endian.
+    (@make_impl $($endian_type:ident),+ => $type:ident) => {
+        impl<T: Endian<T>> From<T> for $type<T> {
+            #[inline]
+            fn from(value: T) -> Self {
+                Self::new(value)
+            }
+        }
+
         $(
-            impl<T: Endian<T>> From<T> for $type<T> {
+            impl From<$type<$endian_type>> for $endian_type {
                 #[inline]
-                fn from(value: T) -> Self {
-                    Self::new(value)
+                fn from(value: $type<$endian_type>) -> Self {
+                    value.to_native()
                 }
             }
         )*
@@ -54,8 +66,6 @@ where
     /// Converts `value` from little endian to the target’s endianness.
     fn from_le(value: T) -> T;
 }
-
-make_endian!(u8, u16, u32, u64, u128, usize);
 
 #[derive(Default, Debug, Copy, Clone, Eq, Hash, PartialEq)]
 #[repr(transparent)]
@@ -101,7 +111,7 @@ impl<T: Endian<T>> LittleEndian<T> {
     }
 }
 
-impl_traits!(LittleEndian, BigEndian);
+impl_traits!(u8, u16, u32, u64, u128, usize => LittleEndian, BigEndian);
 
 #[cfg(test)]
 mod test {
@@ -109,13 +119,19 @@ mod test {
 
     #[test]
     fn new_to_native() {
-        let value = BigEndian::new(12345u64);
-        assert_eq!(value, 12345u64.into());
-        assert_eq!(value.to_native(), 12345u64);
+        let be_value = BigEndian::new(12345u64);
+        assert_eq!(be_value, 12345u64.into());
+        assert_eq!(be_value.to_native(), 12345u64);
 
-        let value = LittleEndian::new(12345u64);
-        assert_eq!(value, 12345u64.into());
-        assert_eq!(value.to_native(), 12345u64);
+        let be_native: u64 = be_value.into();
+        assert_eq!(be_native, 12345u64);
+
+        let le_value = LittleEndian::new(12345u64);
+        assert_eq!(le_value, 12345u64.into());
+        assert_eq!(le_value.to_native(), 12345u64);
+
+        let native: u64 = le_value.into();
+        assert_eq!(native, 12345u64);
     }
 
     #[test]
