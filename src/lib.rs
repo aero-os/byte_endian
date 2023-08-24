@@ -79,12 +79,12 @@ impl<T: Endian<T>> BigEndian<T> {
 
     /// Converts `self` from big endian to the target’s endianness.
     #[inline]
-    pub fn to_native(&self) -> T {
+    pub fn to_native(self) -> T {
         T::from_be(self.0)
     }
 
     #[inline]
-    pub fn to_bits(&self) -> T {
+    pub fn to_bits(self) -> T {
         self.0
     }
 }
@@ -101,12 +101,12 @@ impl<T: Endian<T>> LittleEndian<T> {
 
     /// Converts `self` from little endian to the target’s endianness.
     #[inline]
-    pub fn to_native(&self) -> T {
+    pub fn to_native(self) -> T {
         T::from_le(self.0)
     }
 
     #[inline]
-    pub fn to_bits(&self) -> T {
+    pub fn to_bits(self) -> T {
         self.0
     }
 }
@@ -116,6 +116,31 @@ impl_traits!(u8, u16, u32, u64, u128, usize => LittleEndian, BigEndian);
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn inside_packed() {
+        // This tests that no references are created by calling any of the methods on
+        // the endian types. Since, creating references to a packed field (which is not
+        // aligned) is undefined behaviour (`E0793`).
+        #[repr(C, packed)]
+        struct Packet(BigEndian<u64>, LittleEndian<u64>);
+
+        let packet = Packet(0xfe.into(), 0xfe.into());
+
+        assert_eq!(packet.0.to_native(), 0xfe);
+        if cfg!(byte_endian = "big_endian") {
+            assert_eq!(packet.0.to_bits(), 0xfeu64);
+        } else {
+            assert_eq!(packet.0.to_bits(), 0xfe00000000000000u64);
+        }
+
+        assert_eq!(packet.1.to_native(), 0xfe);
+        if cfg!(byte_endian = "big_endian") {
+            assert_eq!(packet.1.to_bits(), 0xfe00000000000000u64);
+        } else {
+            assert_eq!(packet.1.to_bits(), 0xfeu64);
+        }
+    }
 
     #[test]
     fn new_to_native() {
