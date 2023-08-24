@@ -3,8 +3,8 @@
 
 macro_rules! impl_traits {
     // Implements `Endian` for the given endian types and implements the
-    // necessary traits for the big and little endian types ($l and $b).
-    ($($endian_type:ident),+ => $l:ident, $b:ident) => {
+    // necessary traits for the big and little endian types.
+    ($($endian_type:ident),+) => {
         $(
             impl Endian<$endian_type> for $endian_type {
                 fn to_be(&self) -> $endian_type {
@@ -25,8 +25,8 @@ macro_rules! impl_traits {
             }
         )+
 
-        impl_traits!(@make_impl $($endian_type),+ => $l);
-        impl_traits!(@make_impl $($endian_type),+ => $b);
+        impl_traits!(@make_impl $($endian_type),+ => LittleEndian);
+        impl_traits!(@make_impl $($endian_type),+ => BigEndian);
     };
 
     // Implements `From<T> for $type<T>` and `From<$type<T>> for T` where T
@@ -111,7 +111,7 @@ impl<T: Endian<T>> LittleEndian<T> {
     }
 }
 
-impl_traits!(u8, u16, u32, u64, u128, usize => LittleEndian, BigEndian);
+impl_traits!(u8, u16, u32, u64, u128, usize);
 
 #[cfg(test)]
 mod test {
